@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" title="Add a new Feed" viewActivate="init(event)" viewDeactivate="deactivate(event)" resize="resize(event)" xmlns:local="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.ViewNavigatorEvent;
+			
+			private var addFeedStatement:SQLStatement;
+			private var selectedType:String = "rss"
+			private var myTitle:String;
+			private var myDescription:String;
+			private var myURL:String;
+			private var redditID:String;
+			
+			public function loadRSS():void{
+				myBusy.visible = true;
+				
+				if(selectedType == "rss"){
+					rssService.url = myTextInput.text;
+					redditID = "null";
+					myURL = rssService.url;
+					rssService.send();
+				} else if(selectedType == "subreddit"){
+					rssService.url = myTextInput.text+".xml";
+					myURL = myTextInput.text;
+					rssService.send();
+				}
+				
+				
+			}
+			
+			private function addFeed():void
+			{
+				addFeedStatement = new SQLStatement();
+				addFeedStatement.sqlConnection = FlexGlobals.topLevelApplication.conn;
+				addFeedStatement.addEventListener(SQLEvent.RESULT, addGameResult);
+				addFeedStatement.addEventListener(SQLErrorEvent.ERROR, addGameError);
+				var addGameQuery:String = "INSERT INTO users_feeds (gameid, name, description, url, type, subredditID) VALUES ('"+data.gameid+"','"
+					+escape(myTitle)+"','"
+					+escape(myDescription)+"','"
+					+myURL+"','"
+					+selectedType+"','"
+					+redditID+"')";
+				
+				addFeedStatement.text = addGameQuery;
+				addFeedStatement.execute();
+			}
+			
+			
+			private function addGameResult(event:SQLEvent):void{
+				var result:SQLResult = addFeedStatement.getResult();
+				trace(result);
+				navigator.popView();
+			}
+			
+			private function addGameError(event:SQLErrorEvent):void{
+				trace(event.error);
+			}
+			
+			protected function rssType_changeHandler(event:Event):void
+			{
+				if(rssType.selectedIndex == 0){
+					selectedType = "rss";
+					myTextInput.text = "http://example.com/rss.xml";
+				} else if(rssType.selectedIndex == 1){
+					selectedType = "subreddit";
+					myTextInput.text = "http://reddit.com/r/example";
+				}
+			}
+			
+			protected function resultHandler(event:ResultEvent):void
+			{
+				if(event.result.rss.version == 2){
+					
+					if(event.result.rss.channel.title){
+						myTitle = event.result.rss.channel.title.toString();
+					} else {
+						myTitle = "";
+					}
+					
+					if(event.result.rss.channel.description){
+						myDescription = event.result.rss.channel.description.toString();
+					} else {
+						myDescription = "";
+					}
+					
+					redditID = event.result.rss.channel.link.toString().split('/')[4];
+					
+					addFeed();
+					
+				} else {					
+					myBusy.visible = false;
+					//openPopUp();
+				}
+			} 
+			
+			protected function faultHandler(event:FaultEvent):void
+			{
+				myBusy.visible = false;
+				openPopUp();
+			}
+			
+			protected function init(event:ViewNavigatorEvent):void
+			{
+				rssType.selectedIndex = 0;
+				myTextInput.text = "http://example.com/rss.xml";
+			}
+			
+			private function openPopUp():void{
+				if(popup.isOpen == true){
+					popup.close();
+				} else {
+					popup.open(this, true);
+					align();
+				}
+			}
+			
+			private function closePopUp():void
+			{
+				if(popup.isOpen == true){
+					popup.close();
+				}
+			}					
+			
+			private function align():void{
+				PopUpManager.centerPopUp(popup);
+			}	
+			
+			protected function resize(event:ResizeEvent):void
+			{
+				align()
+			}
+			
+			protected function deactivate(event:ViewNavigatorEvent):void
+			{
+				closePopUp()
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<s:HTTPService id="rssService" result="resultHandler(event)" fault="faultHandler(event)"/>
+		<s:RadioButtonGroup id="rssType" change="rssType_changeHandler(event)"/>
+		<local:InstructionsPopUp id="popup"/>
+	</fx:Declarations>
+	
+	<s:navigationContent>
+		<s:Button click="navigator.popView()">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/257-RSSAlt.png')"
+										source240dpi="@Embed('assets/icons/240/257-RSSAlt.png')"
+										source320dpi="@Embed('assets/icons/320/257-RSSAlt@2x.png')"/>
+			</s:icon>
+		</s:Button>
+	</s:navigationContent>
+	
+	<s:Rect radiusX="5" radiusY="5" left="5" right="5" top="5" bottom="5">
+		<s:fill>
+			<s:SolidColor color="#006D7B"/>
+		</s:fill>
+	</s:Rect>
+	
+	<s:VGroup top="15" left="15" right="15" bottom="0">
+		<!-- <s:Label width="100%" text="Adding community feeds it's easy, just select the type of feed and follow the example on the text prompt."/> -->
+		<s:HGroup gap="10">
+			<s:RadioButton label="RSS 2.0 Feed" color="#FFFFFF" group="{rssType}" />
+			<s:RadioButton label="Subreddit" color="#FFFFFF" group="{rssType}" />
+		</s:HGroup>
+		<s:Spacer height="5" width="5"/>
+		<s:TextInput id="myTextInput" width="100%" autoCorrect="false" enter="loadRSS()"/>
+		<s:Spacer height="5" width="5"/>
+		<s:Button label="Submit" styleName="myButtonStyle" width="100%" click="loadRSS()"/>
+	</s:VGroup>	
+	<s:BusyIndicator id="myBusy" horizontalCenter="0" verticalCenter="0" visible="false"/>
+</s:View>
