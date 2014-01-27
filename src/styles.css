@@ -1,0 +1,116 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+
+@font-face 
+{
+	src: url("assets/font.ttf");
+	fontFamily: MyFont;
+	fontStyle: normal;
+	fontWeight: normal;
+	embedAsCFF: true;
+	advancedAntiAliasing: true;
+	
+}
+
+@font-face 
+{
+	src: url("assets/font.ttf");
+	fontFamily: MyFont2;
+	fontStyle: normal;
+	fontWeight: normal;
+	embedAsCFF: false;
+	advancedAntiAliasing: true;
+	
+}
+
+@media (application-dpi: 160) AND (os-platform:"IOS") AND (min-os-version: 7)
+{
+	s|Application {
+		osStatusBarHeight: 20;
+	}
+}
+
+s|BusyIndicator{
+	symbolColor: #FFFFFF;	
+}
+
+s|ActionBar
+{
+	chromeColor: #1F3C4B;
+}
+
+s|ActionBar #titleDisplay{
+	textAlign: center;
+	fontWeight: normal;
+	color: #FFFFFF;
+	fontFamily: MyFont2;
+	fontSize: 14px;
+}
+
+s|View
+{
+	backgroundColor: #1F3C4B;
+}
+
+s|Application
+{
+	backgroundColor: #1F3C4B;
+}
+
+s|List
+{
+	alternatingItemColors: #1F3C4B;
+	selectionColor: #1F3C4B;
+	downColor: #1F3C4B;
+	contentBackgroundColor: #305D76;
+	fontFamily: MyFont2;
+	fontSize: 12;
+	color: #FFFFFF;
+}
+
+
+s|Label
+{
+	color: #FFFFFF;
+	fontSize: 14px;
+}
+
+s|ViewMenuItem
+{
+	color: #FFFFFF;
+	fontFamily: MyFont2;
+	fontSize: 12px;
+	chromeColor: #1F3C4B;	
+}
+
+s|TextInput
+{
+	contentBackgroundColor: #1F3C4B;
+	color: #FFFFFF;
+}
+
+.myListStyle{
+	alternatingItemColors: #1F3C4B;
+	selectionColor: #1F3C4B;
+	downColor: #1F3C4B;
+	contentBackgroundColor: #305D76;
+	fontFamily: _sans;
+	fontSize: 12;
+	color: #FFBA00;
+}
+
+.myButtonStyle{
+	fontSize: 10px;
+	fontWeight: normal;
+	fontFamily: MyFont2;
+	color: #FFFFFF;
+	chromeColor: #1F3C4B;
+}
+
+.myMessageStyle{
+	color: #FFBA00;	
+}
+
+.myMessageStyle2{
+	color: #FFFFFF;	
+}

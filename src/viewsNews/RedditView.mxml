@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" tabBarVisible="false" title="{data.title}" viewActivate="init(event)" destructionPolicy="never">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayList;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.ViewNavigatorEvent;
+			
+			private var deleteStatement:SQLStatement;
+			private var loadPostsStatement:SQLStatement;
+			
+			protected function init(event:ViewNavigatorEvent):void
+			{
+				if(currentState == "SavedState"){
+					loadSavedPosts();
+				}
+			}
+			
+			protected function resultHandler(event:ResultEvent):void
+			{
+				var myObject:Object = JSON.parse(String(event.result));
+
+				var newsArray:Array = new Array();
+				
+				for(var i:int = 0; i<=myObject.data.children.length-1; i++){
+					newsArray.push({title:myObject.data.children[i].data.title, 
+						url:myObject.data.children[i].data.url, 
+						id:myObject.data.children[i].data.id,
+						description:myObject.data.children[i].data.selftext_html, 
+						domain:myObject.data.children[i].data.domain, 
+						is_self:myObject.data.children[i].data.is_self});
+				}
+				
+				newsList.dataProvider = new ArrayList(newsArray);
+				
+				myBusy.visible = false;
+			}
+			
+			protected function changeHandler(event:IndexChangeEvent):void
+			{
+				var myObject:Object = new Object();
+				
+				myObject.postID = newsList.selectedItem.id;
+				myObject.title = newsList.selectedItem.title;
+				myObject.url = newsList.selectedItem.url;
+				myObject.gameid = data.gameid;
+				myObject.selfpost = newsList.selectedItem.is_self.toString();
+				myObject.domain = newsList.selectedItem.domain;
+				myObject.subredditID = data.subredditID;
+				myObject.description = newsList.selectedItem.description;
+				
+				if(currentState == "SavedState"){
+					myObject.id = newsList.selectedItem.id;
+					myObject.isSaved = true;
+				} else {
+					myObject.isSaved = false;
+				}
+				
+				navigator.pushView(LinkDetails, myObject);
+			}
+			
+			private function changeState(newState:String):void{
+				currentState = newState;
+			}
+			
+			protected function enterHotState(event:FlexEvent):void
+			{
+				myBusy.visible = true;
+				redditService.url = data.url+"/hot.json";
+				redditService.send();
+			}
+			
+			protected function enterNewState(event:FlexEvent):void
+			{
+				myBusy.visible = true;
+				redditService.url = data.url+"/new.json";
+				redditService.send();
+			}
+			
+			protected function enterSaveState(event:FlexEvent):void
+			{
+				loadSavedPosts();
+			}
+			
+			private function loadSavedPosts():void{
+				loadPostsStatement = new SQLStatement();
+				loadPostsStatement.sqlConnection = FlexGlobals.topLevelApplication.conn;
+				loadPostsStatement.addEventListener(SQLEvent.RESULT, loadChannelsResult);
+				loadPostsStatement.addEventListener(SQLErrorEvent.ERROR, loadChannelsError);
+				var loadChannelsQuery:String = "SELECT * FROM users_redditposts WHERE subredditID= '"+data.subredditID+"'";
+				
+				loadPostsStatement.text = loadChannelsQuery;
+				loadPostsStatement.execute();
+			}
+			
+			private function loadChannelsResult(event:SQLEvent):void{
+				var result:SQLResult = loadPostsStatement.getResult();
+				var postsArray:Array = new Array();
+				
+				if(result.data != null){
+					for(var i:int = 0; i<result.data.length; i++){
+						postsArray.push({id:result.data[i].id, gameid:result.data[i].gameid, title:unescape(result.data[i].title), url:result.data[i].url, domain:result.data[i].domain, is_self:result.data[i].selfpost});					
+					}
+				} else {
+					//
+				}
+				newsList.dataProvider = new ArrayList(postsArray);
+			}
+			
+			private function loadChannelsError(error:SQLErrorEvent):void{
+				//trace(error.errorID);
+			}
+			
+			private function deleteSubreddit():void{
+				deleteStatement = new SQLStatement();
+				deleteStatement.sqlConnection = FlexGlobals.topLevelApplication.conn;
+				deleteStatement.addEventListener(SQLEvent.RESULT, deleteDatabaseResult);
+				
+				var myQuery:String = "DELETE FROM users_feeds WHERE id ="+data.id;
+				
+				deleteStatement.text = myQuery;
+				deleteStatement.execute();
+			}		
+			
+			private function deleteDatabaseResult(event:SQLEvent):void{
+				navigator.popView();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:HTTPService id="redditService" resultFormat="text" result="resultHandler(event)"/>
+	</fx:Declarations>
+	
+	<s:states>
+		<s:State name="HotState" enterState="enterHotState(event)"/>
+		<s:State name="NewState" enterState="enterNewState(event)"/>
+		<s:State name="SavedState" enterState="enterSaveState(event)"/>
+	</s:states>
+	
+	<s:navigationContent>
+		<s:Button click="navigator.popView()">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/257-RSSAlt.png')"
+										source240dpi="@Embed('assets/icons/240/257-RSSAlt.png')"
+										source320dpi="@Embed('assets/icons/320/257-RSSAlt@2x.png')"/>
+			</s:icon>
+		</s:Button>
+	</s:navigationContent>
+
+	<s:actionContent>
+		<s:CalloutButton horizontalPosition="middle">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/072-Settings.png')"
+										source240dpi="@Embed('assets/icons/240/072-Settings.png')"
+										source320dpi="@Embed('assets/icons/320/072-Settings@2x.png')"/>
+			</s:icon>
+			<s:calloutLayout>
+				<s:VerticalLayout gap="0"/>
+			</s:calloutLayout>
+			<s:ViewMenuItem width="200" height="100%" label="Delete Subreddit" click="deleteSubreddit()"/>
+		</s:CalloutButton>
+	</s:actionContent>
+	
+	<s:Rect width="100%" top="0" height="50">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:entries>
+					<s:GradientEntry color="#006D7B"/>
+					<s:GradientEntry color="#1F3C4B"/>														
+				</s:entries>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:HGroup id="mainButtonbar" width="100%" top="0" height="50" gap="0" columnWidth="{mainButtonbar.width/3}">
+		<s:Group id="group1" click="changeState('HotState')" width="100%" height="100%">
+			<s:Label text="Hot" fontFamily="MyFont" fontSize="12" verticalCenter="0" horizontalCenter="0"/>
+		</s:Group>
+		<s:Group id="group2" click="changeState('NewState')" width="100%" height="100%">
+			<s:Label text="New" fontFamily="MyFont" fontSize="12" verticalCenter="0" horizontalCenter="0"/>
+		</s:Group>
+		<s:Group id="group3" click="changeState('SavedState')" width="100%" height="100%">
+			<s:Label text="Saved" fontFamily="MyFont" fontSize="12" verticalCenter="0" horizontalCenter="0"/>
+		</s:Group>
+	</s:HGroup>
+	
+	<s:Rect id="blueRect" width="33%" y="45" height="5" left.HotState="0" horizontalCenter.NewState="0" right.SavedState="0">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:entries>
+					<s:GradientEntry color="#0099FF"/>
+					<s:GradientEntry color="#006D7B"/>				
+				</s:entries>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:Line width="100%" height="1" y="45">
+		<s:stroke>
+			<s:SolidColorStroke color="#617680"/>
+		</s:stroke>
+	</s:Line>	
+	
+	<s:Line width="100%" height="1" y="50">
+		<s:stroke>
+			<s:SolidColorStroke color="#617680"/>
+		</s:stroke>
+	</s:Line>
+	
+	<s:List id="newsList" change="changeHandler(event)" width="100%" top="50" bottom="0">
+		<s:itemRenderer>
+			<fx:Component>
+				<s:IconItemRenderer labelFunction="myLabelFunction" iconWidth="30" iconHeight="30" iconFunction="myIconFunction">
+					<fx:Script>
+						<![CDATA[
+							
+							private function myLabelFunction(item:Object):String{
+								return  data.title;
+							}
+							
+							private function myMessageFunction(item:Object):String{
+								return data.title;
+							}
+							
+							private function myIconFunction(item:Object):String{
+								if(data.is_self == true || data.is_self == 'true'){
+									return "assets/icons/self.png";
+								} else {
+									if(String(data.domain).search("youtu") != -1){
+										return "assets/icons/yt.png";
+									} else if(String(data.domain).search("imgur") != -1){
+										return "assets/icons/image.png";
+									} else {
+										return "assets/icons/link.png";
+									}
+								}							
+							}
+							
+						]]>
+					</fx:Script>
+				</s:IconItemRenderer>
+			</fx:Component>
+		</s:itemRenderer>
+	</s:List>
+	
+	<s:BusyIndicator id="myBusy" horizontalCenter="0" verticalCenter="0" visible="false"/>
+	
+</s:View>

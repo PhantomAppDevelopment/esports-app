@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnablePopUpContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+						   xmlns:s="library://ns.adobe.com/flex/spark" width="250" height="250" backgroundColor="#295167">
+	
+						   
+	<s:Label horizontalCenter="0" top="10" fontSize="14" text="Examples"/>
+		<s:Label left="10" right="10" top="35" fontSize="12"
+				text="Optimized for Wordpress Blogs and RSS 2.0 feeds.&#xd;&#xd; http://someblog.com/feed &#xd;&#xd; http://someblog.com/?feed=rss2 &#xd;&#xd; http://somewebsite.com/rss.xml &#xd;&#xd; Not all websites have a RSS feed!"/>
+		<s:Button left="20" right="20" bottom="20" label="OK" click="this.close()" horizontalCenter="0" styleName="myButtonStyle"/>
+	
+	
+</s:SkinnablePopUpContainer>

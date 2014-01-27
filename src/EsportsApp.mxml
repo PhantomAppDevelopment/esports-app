@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" applicationDPI="160" applicationComplete="init(event)" frameRate="60" splashScreenImage="@Embed('assets/splash.png')" splashScreenScaleMode="zoom">
+	
+	<fx:Style source="styles.css"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import renderers.MenuRenderer;
+			
+			import views.AboutView;
+			import views.FeedbackView;
+			import views.GameView;
+			import views.MainView;		
+			
+			private var isOpen:Boolean;	
+			
+			[Bindable]
+			private var currentStageWidth:Number;
+			
+			[Bindable]
+			private var currentStageHeight:Number;
+			
+			public var conn:SQLConnection;
+			public var db:File;
+			private var myStatement:SQLStatement;
+			private var selectGamesStatement:SQLStatement;
+			private var addGameStatement:SQLStatement;
+			private var myQuery:String;
+			
+			protected function init(event:FlexEvent):void
+			{
+				db = File.applicationStorageDirectory.resolvePath("esports.db");
+				conn = new SQLConnection();
+				conn.addEventListener(SQLEvent.OPEN, openDatabaseHandler);
+				conn.openAsync(db);
+				
+				stage.addEventListener(Event.RESIZE, orientationHandler);
+				
+				currentStageWidth = stage.stageWidth*-1;
+				lateralMenu.x = currentStageWidth;
+				currentStageHeight = navigator.height-45;
+				lateralMenu.height = currentStageHeight;			
+				lateralMenu.x = currentStageWidth;
+				isOpen = false;
+				background.visible = false;
+			}
+			
+			private function openDatabaseHandler(event:SQLEvent):void{
+				myStatement = new SQLStatement();
+				myStatement.sqlConnection = conn;
+				myStatement.addEventListener(SQLEvent.RESULT, openDatabaseResult);				
+				myQuery = "CREATE TABLE IF NOT EXISTS users_games (id INTEGER PRIMARY KEY, gameid TEXT UNIQUE, name TEXT)";
+				myStatement.text = myQuery;
+				myStatement.execute();
+				
+				myStatement = new SQLStatement();
+				myStatement.sqlConnection = conn;
+				myStatement.addEventListener(SQLEvent.RESULT, openDatabaseResult);				
+				myQuery = "CREATE TABLE IF NOT EXISTS users_channels (id INTEGER PRIMARY KEY, gameid TEXT, channelID TEXT UNIQUE, channelName TEXT, thumbnail TEXT)";
+				myStatement.text = myQuery;
+				myStatement.execute();
+
+				myStatement = new SQLStatement();
+				myStatement.sqlConnection = conn;
+				myQuery = "CREATE TABLE IF NOT EXISTS favoritegame (id INTEGER PRIMARY KEY, gameid TEXT UNIQUE, name TEXT)";
+				myStatement.text = myQuery;
+				myStatement.execute();
+				
+				myStatement = new SQLStatement();
+				myStatement.sqlConnection = conn;
+				myQuery = "CREATE TABLE IF NOT EXISTS users_feeds (id INTEGER PRIMARY KEY, gameid TEXT, name TEXT, description TEXT, url TEXT, type TEXT, subredditID TEXT UNIQUE)";
+				myStatement.text = myQuery;
+				myStatement.execute();
+				
+				myStatement = new SQLStatement();
+				myStatement.sqlConnection = conn;
+				myQuery = "CREATE TABLE IF NOT EXISTS users_redditposts (id INTEGER PRIMARY KEY, gameID TEXT, postID TEXT UNIQUE, subredditID TEXT, title TEXT, selfpost TEXT, url TEXT, domain TEXT)";
+				myStatement.text = myQuery;
+				myStatement.execute();
+				
+				loadSavedGames();
+			}
+			
+			private function openDatabaseResult(event:SQLEvent):void{
+				//Alert.show("Database Opened", "Success");
+			}
+			
+			public function loadSavedGames():void{
+				selectGamesStatement = new SQLStatement();
+				selectGamesStatement.sqlConnection = conn;
+				selectGamesStatement.addEventListener(SQLEvent.RESULT, selectGamesResult);				
+				var selectGamesQuery:String = "SELECT * FROM users_games";				
+				selectGamesStatement.text = selectGamesQuery;
+				selectGamesStatement.execute();
+			}
+			
+			private function selectGamesResult(event:SQLEvent):void{
+				var result:SQLResult = selectGamesStatement.getResult();
+				var gamesArray:Array = new Array();
+				
+				gamesArray.push({label:"Games", type:"separator"});
+				
+				if(result.data != null){
+					for(var i:int = 0; i<result.data.length; i++){
+						gamesArray.push({gameid:result.data[i].gameid, label:unescape(result.data[i].name), type:"game"});					
+					}
+				}
+				
+				gamesArray.push({label:"Settings", type:"separator"});
+				gamesArray.push({label:"Add More Games", type:"view", view:MainView});
+				gamesArray.push({label:"Feedback", type:"view", view:FeedbackView});
+				gamesArray.push({label:"About", type:"view", view:AboutView});
+				
+				componentsList.dataProvider = new ArrayCollection(gamesArray);
+			}
+			
+			private function orientationHandler(event:Event):void{
+				currentStageWidth = stage.stageWidth*-1;
+				
+				if(isOpen == false){
+					lateralMenu.x = currentStageWidth;
+				}
+				
+				currentStageHeight = navigator.height-45;
+				lateralMenu.height = currentStageHeight;	
+				
+			}
+			
+			protected function menuHandler(event:MouseEvent):void
+			{
+				
+				if(isOpen == true){
+					moveOut.play();
+					isOpen = false;
+					background.visible = false;
+				} else if(isOpen == false){
+					moveIn.play();
+					isOpen = true;
+					background.visible = true;
+				}
+			}
+			
+			protected function changeHandler(event:IndexChangeEvent):void
+			{
+				if(componentsList.selectedItem.type == "separator"){
+					//
+				} else if(componentsList.selectedItem.type == "view"){	
+					isOpen = false;
+					moveOut.play();
+					
+					navigator.pushView(componentsList.selectedItem.view);					
+				} else {				
+					isOpen = false;
+					moveOut.play();
+					
+					navigator.pushView(GameView, componentsList.selectedItem);
+				}
+			}
+			
+			protected function menuBackgroundHandler(event:MouseEvent):void
+			{
+				background.visible = false;
+				isOpen = false;
+				moveOut.play();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:Move id="moveIn" duration="200" target="{lateralMenu}" xTo="0"/>
+		<s:Move id="moveOut" duration="200" target="{lateralMenu}" xTo="{currentStageWidth}"/>
+	</fx:Declarations>
+	
+	<s:ViewNavigator id="navigator" firstView="views.MainView" width="100%" height="100%">
+		<s:navigationContent>
+			<s:Button click="menuHandler(event)">
+				<s:icon>
+					<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/271-ThreeColumn.png')"
+											source240dpi="@Embed('assets/icons/240/271-ThreeColumn.png')"
+											source320dpi="@Embed('assets/icons/320/271-ThreeColumn@2x.png')"/>
+				</s:icon>
+			</s:Button>
+		</s:navigationContent>
+	</s:ViewNavigator>
+	
+	<s:Group id="lateralMenu" width="100%" y="45">
+		<s:Graphic id="background" width="100%" height="100%" click="menuBackgroundHandler(event)">
+			<s:BitmapImage alpha="0" width="100%" height="100%" scaleMode="zoom" source="@Embed('assets/images/bg.png')"/>
+		</s:Graphic>
+		
+		<s:List id="componentsList" itemRenderer="renderers.MenuRenderer" width="200" height="100%" change="changeHandler(event)" alternatingItemColors="#295167"/>
+	</s:Group>
+	
+	
+</s:Application>
+

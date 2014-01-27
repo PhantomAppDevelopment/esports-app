@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" title="{data.label} Channels" viewActivate="init(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayList;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.PropertyChangeEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.ViewNavigatorEvent;
+			
+			private var startIndex:int;
+			private var loading:Boolean;
+			private var searchTerm:String;
+			private var addChannelStatement:SQLStatement;
+			
+			protected function init(event:ViewNavigatorEvent):void
+			{
+				searchTerm = data.name;
+				
+				myBusy.visible = true;
+				startIndex = 1;
+				
+				channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+				channelUploads.send();
+			}
+
+			protected function channelUploads_resultHandler(event:ResultEvent):void
+			{
+				if(channelsList.dataProvider == null){
+					channelsList.dataProvider = event.result.feed.entry;
+				} else {
+					for each ( var item : * in event.result.feed.entry){
+						channelsList.dataProvider.addItem(item);
+					}
+				}
+				
+				loading = false;
+				myBusy.visible = false;
+			}
+			
+			protected function channelsList_creationCompleteHandler(event:FlexEvent):void
+			{
+				channelsList.scroller.viewport.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, propertyChangeHandler);
+			}
+			
+			protected function propertyChangeHandler( event : PropertyChangeEvent):void {
+				if(event.property == "verticalScrollPosition"){
+					if(event.newValue == ( event.currentTarget.measuredHeight - event.currentTarget.height)){
+						loadMore();
+					}
+				}
+			}
+			
+			public function loadMore():void{
+				if(!loading){
+					myBusy.visible = true;
+					loading = true;
+					startIndex+=20;
+					channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+					channelUploads.send();
+				}
+			}
+			
+			public function addChannel():void
+			{
+				addChannelStatement = new SQLStatement();
+				addChannelStatement.sqlConnection = FlexGlobals.topLevelApplication.conn;
+				addChannelStatement.addEventListener(SQLEvent.RESULT, addChannelResult);
+				addChannelStatement.addEventListener(SQLErrorEvent.ERROR, addChannelError);
+				var addChanelQuery:String = "INSERT INTO users_channels (gameid, channelID, channelName, thumbnail) VALUES " +
+					"('"+data.gameid+"','"+channelsList.selectedItem.author.userId+"','"+escape(channelsList.selectedItem.title)+"','"+channelsList.selectedItem.thumbnail.url+"')";
+				
+				addChannelStatement.text = addChanelQuery;
+				addChannelStatement.execute();
+			}
+			
+			private function addChannelResult(event:SQLEvent):void{
+				var result:SQLResult = addChannelStatement.getResult();
+				trace(result);
+			}
+			
+			private function addChannelError(event:SQLErrorEvent):void{
+				trace(event.error);
+			}
+			
+			protected function customSearch():void
+			{
+				if(searchTxt.text == ""){
+					//do nothing
+				} else {
+					
+					stage.focus = null;
+					
+					searchTerm = searchTxt.text;
+					
+					myBusy.visible = true;
+					startIndex = 1;
+					
+					channelsList.dataProvider = new ArrayList(new Array());
+					
+					channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+					channelUploads.send();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:HTTPService id="channelUploads" result="channelUploads_resultHandler(event)"/>
+	</fx:Declarations>
+	
+	<s:navigationContent>
+		<s:Button click="navigator.popView()">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/115-Film.png')"
+										source240dpi="@Embed('assets/icons/240/115-Film.png')"
+										source320dpi="@Embed('assets/icons/320/115-Film@2x.png')"/>
+			</s:icon>
+		</s:Button>
+	</s:navigationContent>
+	
+	<s:Rect x="0" width="100%" height="55" top="0">		
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:entries>
+					<s:GradientEntry color="#006D7B"/>
+					<s:GradientEntry color="#1F3C4B"/>														
+				</s:entries>
+			</s:LinearGradient>	
+		</s:fill>
+	</s:Rect>
+	
+	<s:TextInput id="searchTxt" left="10" right="55" top="10" height="35" prompt="Type Search Term" autoCorrect="false" enter="customSearch()"/>
+	<s:Image source="@Embed('assets/icons/search.png')" smooth="true" scaleMode="letterbox" width="35" height="35" right="10" y="10" click="customSearch()"/>
+	
+	<s:List id="channelsList" change="addChannel()" creationComplete="channelsList_creationCompleteHandler(event)" width="100%" top="55" bottom="0">
+		<s:itemRenderer>
+			<fx:Component>
+				<s:IconItemRenderer labelField="title" iconWidth="40" iconHeight="40" iconFunction="myIconFunction">
+					<s:decorator>
+						<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/add160.png')"
+												source240dpi="@Embed('assets/icons/240/add240.png')"
+												source320dpi="@Embed('assets/icons/320/add320.png')"/>
+					</s:decorator>
+					<fx:Script>
+						<![CDATA[
+							
+							private function myIconFunction(item:Object):String{
+								return "https://i.ytimg.com/i/"+data.author.userId+"/mq1.jpg";
+							}
+							
+						]]>
+					</fx:Script>
+				</s:IconItemRenderer>
+			</fx:Component>
+		</s:itemRenderer>
+	</s:List>
+	
+	<s:BusyIndicator id="myBusy" verticalCenter="0" horizontalCenter="0" visible="false"/>
+	
+</s:View>

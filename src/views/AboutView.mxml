@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" title="About">
+	
+	<s:Rect radiusX="10" radiusY="10" left="10" right="10" top="10" bottom="10">
+		<s:fill>
+			<s:SolidColor color="#006D7B"/>
+		</s:fill>
+	</s:Rect>
+	
+	<s:Scroller width="100%" height="100%">
+		<s:VGroup paddingLeft="20" paddingRight="20" paddingTop="20" paddingBottom="20">
+			<s:Label width="100%" text="Copyright © Phantom App Development 2014 All Rights Reserved." />
+			<s:Spacer height="5" width="5"/>
+			<s:Label width="100%" text="News Feeds provided by Google RSS Feeds." />
+			<s:Spacer height="15" width="5"/>
+			<s:BitmapImage smooth="true" width="200" height="28" source="@Embed('assets/images/powered.png')"/>
+			<s:Spacer height="15" width="5"/>
+			<s:Label width="100%" text="Phantom App Development provides the 'eSports News &amp; VODs' mobile application as a product to the public. Phantom App Development is not responsible for, and expressly disclaims all liability for, damages of any kind arising out of use, reference to, or reliance on any information contained within the application." />
+		</s:VGroup>
+	</s:Scroller>
+</s:View>
