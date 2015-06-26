@@ -1,7 +1,7 @@
 eSports App
 ===========
 
-eSports app made with Apache Flex 4.12 and Adobe AIR 4.0
+eSports app made with Apache Flex 4.14.1 and Adobe AIR 17.0
 
 How to use:
 
@@ -13,7 +13,7 @@ How to use:
 
 4. Replace the 'src' folder from the new project you just created with the one you downloaded/cloned from this repo.
 
-5. You must provide your own UI icons, all of them should go in the 'assets' folder (you have to create it).
+5. You must provide your own UI icons, all of them should go in the 'assets/icons' folder.
 
 When you try to compile the app for the first time it will throw several errors, all of them are from missing assets.
 
@@ -24,9 +24,5 @@ source="@Embed('assets/icons/someicon.png')" to source="assets/icons/someicon.pn
 
 Notes:
 
-This project can teach you how to use SQLite, HTTPServices, Lazy Loading and some performance optimizations.
-
-
-TODO:
-
-Add comments to the code to explain what everything does.
+You need a Youtube V3 Data APiKEY. You can generate a free one from your Google Developers Console.
+This project can teach you how to use SQLite, HTTPServices, JSON parsing, Lazy Loading and some performance optimizations.

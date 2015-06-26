@@ -5,13 +5,15 @@
 		<![CDATA[
 			import mx.collections.ArrayList;
 			import mx.core.FlexGlobals;
+			import mx.effects.Fade;
 			import mx.events.FlexEvent;
 			import mx.events.PropertyChangeEvent;
+			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
 			
 			import spark.events.ViewNavigatorEvent;
 			
-			private var startIndex:int;
+			private var pageToken:String;
 			private var loading:Boolean;
 			private var searchTerm:String;
 			private var addChannelStatement:SQLStatement;
@@ -21,18 +23,23 @@
 				searchTerm = data.name;
 				
 				myBusy.visible = true;
-				startIndex = 1;
+				pageToken = "";
 				
-				channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+				channelUploads.url = "https://www.googleapis.com/youtube/v3/search?q="+searchTerm+"&maxResults=50&order=relevance&type=channel&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 				channelUploads.send();
 			}
 
 			protected function channelUploads_resultHandler(event:ResultEvent):void
 			{
+				var rawData:Object = JSON.parse(String(event.result));
+				pageToken = rawData.nextPageToken;
+				trace(event.result);
+				
 				if(channelsList.dataProvider == null){
-					channelsList.dataProvider = event.result.feed.entry;
+					var channelsArray:ArrayList = new ArrayList(rawData.items as Array);
+					channelsList.dataProvider = channelsArray;
 				} else {
-					for each ( var item : * in event.result.feed.entry){
+					for each (var item:* in rawData.items){
 						channelsList.dataProvider.addItem(item);
 					}
 				}
@@ -58,8 +65,7 @@
 				if(!loading){
 					myBusy.visible = true;
 					loading = true;
-					startIndex+=20;
-					channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+					channelUploads.url = "https://www.googleapis.com/youtube/v3/search?q="+searchTerm+"&maxResults=50&order=date&type=channel&pageToken="+pageToken+"&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					channelUploads.send();
 				}
 			}
@@ -71,7 +77,7 @@
 				addChannelStatement.addEventListener(SQLEvent.RESULT, addChannelResult);
 				addChannelStatement.addEventListener(SQLErrorEvent.ERROR, addChannelError);
 				var addChanelQuery:String = "INSERT INTO users_channels (gameid, channelID, channelName, thumbnail) VALUES " +
-					"('"+data.gameid+"','"+channelsList.selectedItem.author.userId+"','"+escape(channelsList.selectedItem.title)+"','"+channelsList.selectedItem.thumbnail.url+"')";
+					"('"+data.gameid+"','"+channelsList.selectedItem.snippet.channelId+"','"+escape(channelsList.selectedItem.snippet.title)+"','"+channelsList.selectedItem.snippet.thumbnails.medium.url+"')";
 				
 				addChannelStatement.text = addChanelQuery;
 				addChannelStatement.execute();
@@ -97,20 +103,26 @@
 					searchTerm = searchTxt.text;
 					
 					myBusy.visible = true;
-					startIndex = 1;
+					pageToken = "";
 					
 					channelsList.dataProvider = new ArrayList(new Array());
 					
-					channelUploads.url = "https://gdata.youtube.com/feeds/api/channels?q="+searchTerm+"&max-results=20&v=2&start-index="+startIndex;
+					channelUploads.url = "https://www.googleapis.com/youtube/v3/search?q="+searchTerm+"&maxResults=50&order=relevance&type=channel&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					channelUploads.send();
 				}
+			}
+			
+			protected function channelUploads_faultHandler(event:FaultEvent):void
+			{
+				loading = false;
+				myBusy.visible = false;
 			}
 			
 		]]>
 	</fx:Script>
 	
 	<fx:Declarations>
-		<s:HTTPService id="channelUploads" result="channelUploads_resultHandler(event)"/>
+		<s:HTTPService id="channelUploads" result="channelUploads_resultHandler(event)" fault="channelUploads_faultHandler(event)" resultFormat="text"/>
 	</fx:Declarations>
 	
 	<s:navigationContent>
@@ -140,7 +152,7 @@
 	<s:List id="channelsList" change="addChannel()" creationComplete="channelsList_creationCompleteHandler(event)" width="100%" top="55" bottom="0">
 		<s:itemRenderer>
 			<fx:Component>
-				<s:IconItemRenderer labelField="title" iconWidth="40" iconHeight="40" iconFunction="myIconFunction">
+				<s:IconItemRenderer labelFunction="myLabelFunction" iconScaleMode="letterbox" iconWidth="40" iconHeight="40" iconFunction="myIconFunction">
 					<s:decorator>
 						<s:MultiDPIBitmapSource source160dpi="@Embed('assets/icons/160/add160.png')"
 												source240dpi="@Embed('assets/icons/240/add240.png')"
@@ -149,8 +161,12 @@
 					<fx:Script>
 						<![CDATA[
 							
+							private function myLabelFunction(item:Object):String{
+								return data.snippet.title;
+							}
+							
 							private function myIconFunction(item:Object):String{
-								return "https://i.ytimg.com/i/"+data.author.userId+"/mq1.jpg";
+								return data.snippet.thumbnails.medium.url
 							}
 							
 						]]>

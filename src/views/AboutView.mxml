@@ -10,7 +10,7 @@
 	
 	<s:Scroller width="100%" height="100%">
 		<s:VGroup paddingLeft="20" paddingRight="20" paddingTop="20" paddingBottom="20">
-			<s:Label width="100%" text="Copyright © Phantom App Development 2014 All Rights Reserved." />
+			<s:Label width="100%" text="Copyright © Phantom App Development 2015 All Rights Reserved." />
 			<s:Spacer height="5" width="5"/>
 			<s:Label width="100%" text="News Feeds provided by Google RSS Feeds." />
 			<s:Spacer height="15" width="5"/>

@@ -26,6 +26,7 @@
 			private var deleteGameStatement:SQLStatement;
 			private var loadChannelsStatement:SQLStatement;
 			private var loadFeedsStatement:SQLStatement;
+			private var rawData:Object;
 			
 			protected function deleteGame():void
 			{
@@ -118,23 +119,25 @@
 			}
 			
 			private function loadRecentVideos():void{
-				videosService.url = "https://gdata.youtube.com/feeds/api/videos?q="+escape(data.label+" VOD")+"&orderby=published&start-index=1&max-results=3&v=2";
+				videosService.url = "https://www.googleapis.com/youtube/v3/search?q="+escape(data.label+" VOD")+"&maxResults=3&order=date&type=video&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 				videosService.send();
 			}
 			
 			protected function videosResultHandler(event:ResultEvent):void
 			{
-				videotitle1.text = event.result.feed.entry[0].title;
-				videoauthor1.text = event.result.feed.entry[0].author.name;
-				video1.source = "http://i1.ytimg.com/vi/"+event.result.feed.entry[0].group.videoid+"/default.jpg";
+				rawData = JSON.parse(String(event.result));
 				
-				videotitle2.text = event.result.feed.entry[1].title;
-				videoauthor2.text = event.result.feed.entry[0].author.name;
-				video2.source = "http://i1.ytimg.com/vi/"+event.result.feed.entry[1].group.videoid+"/default.jpg";
+				videotitle1.text = rawData.items[0].snippet.title;
+				videoauthor1.text = rawData.items[0].snippet.channelTitle;
+				video1.source = rawData.items[0].snippet.thumbnails.medium.url;
 				
-				videotitle3.text = event.result.feed.entry[2].title;
-				videoauthor3.text = event.result.feed.entry[0].author.name;
-				video3.source = "http://i1.ytimg.com/vi/"+event.result.feed.entry[2].group.videoid+"/default.jpg";
+				videotitle2.text = rawData.items[1].snippet.title;
+				videoauthor2.text = rawData.items[1].snippet.channelTitle;
+				video2.source = rawData.items[1].snippet.thumbnails.medium.url;
+				
+				videotitle3.text = rawData.items[2].snippet.title;
+				videoauthor3.text = rawData.items[2].snippet.channelTitle;
+				video3.source = rawData.items[2].snippet.thumbnails.medium.url;
 			}
 			
 			protected function goRecentVideos(event:MouseEvent):void
@@ -258,7 +261,7 @@
 	
 	<fx:Declarations>
 		<s:HTTPService id="newsService" resultFormat="e4x" result="resultHandler(event)" />
-		<s:HTTPService id="videosService" result="videosResultHandler(event)"/>
+		<s:HTTPService id="videosService" result="videosResultHandler(event)" resultFormat="text"/>
 	</fx:Declarations>
 	
 	<s:states>
@@ -384,21 +387,21 @@
 				<s:BitmapImage id="video1" x="10" y="10" smooth="true" width="100" height="75"/>
 				<s:Label id="videotitle1" left="120" right="10" y="10" maxDisplayedLines="3"/>
 				<s:Label id="videoauthor1" top="65" left="120" right="10" color="#FFBA00" maxDisplayedLines="1"/>
-				<s:Graphic click="goVideoDetails(videosService.lastResult.feed.entry[0].title, videosService.lastResult.feed.entry[0].group.videoid)" top="0">
+				<s:Graphic click="goVideoDetails(rawData.items[0].snippet.title, rawData.items[0].id.videoId)" top="0">
 					<s:Rect width="{MainGroup.width}" height="90" />
 				</s:Graphic>
 				
 				<s:BitmapImage id="video2" x="10" smooth="true" width="100" height="75" verticalCenter="0"/>
 				<s:Label id="videotitle2" left="120" right="10" y="100" maxDisplayedLines="3"/>
 				<s:Label id="videoauthor2" top="150" left="120" right="10" color="#FFBA00" maxDisplayedLines="1"/>
-				<s:Graphic click="goVideoDetails(videosService.lastResult.feed.entry[1].title, videosService.lastResult.feed.entry[1].group.videoid)" verticalCenter="0">
+				<s:Graphic click="goVideoDetails(rawData.items[1].snippet.title, rawData.items[1].id.videoId)" verticalCenter="0">
 					<s:Rect width="{MainGroup.width}" height="90" />
 				</s:Graphic>
 				
 				<s:BitmapImage id="video3" x="10" bottom="10" smooth="true" width="100" height="75"/>
 				<s:Label id="videotitle3" left="120" right="10" y="185" maxDisplayedLines="3"/>
 				<s:Label id="videoauthor3" bottom="10" left="120" right="10" color="#FFBA00" lineBreak="toFit" maxDisplayedLines="1"/>
-				<s:Graphic click="goVideoDetails(videosService.lastResult.feed.entry[2].title, videosService.lastResult.feed.entry[2].group.videoid)" bottom="0">
+				<s:Graphic click="goVideoDetails(rawData.items[2].snippet.title, rawData.items[2].id.videoId)" bottom="0">
 					<s:Rect width="{MainGroup.width}" height="90" />
 				</s:Graphic>
 			</s:Group>
@@ -425,7 +428,7 @@
 							}
 							
 							private function myIconFunction(item:Object):String{
-								return "https://i.ytimg.com/i/"+data.channelID+"/mq1.jpg";
+								return data.thumbnail;
 							}
 						]]>
 					</fx:Script>
@@ -444,7 +447,7 @@
 	<s:List includeIn="GameFeedsState" id="feedsList" change="goRSSView(event)" left="5" right="5" top="100" bottom="5">
 		<s:itemRenderer>
 			<fx:Component>
-				<s:IconItemRenderer iconWidth="20" iconHeight="20" iconFunction="myIconFunction" messageStyleName="myMessageStyle" labelFunction="myLabelFunction" messageFunction="myMessageFunction">
+				<s:IconItemRenderer iconScaleMode="letterbox" iconWidth="20" iconHeight="20" iconFunction="myIconFunction" messageStyleName="myMessageStyle" labelFunction="myLabelFunction" messageFunction="myMessageFunction">
 					<fx:Script>
 						<![CDATA[
 							

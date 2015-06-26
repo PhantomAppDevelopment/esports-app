@@ -18,6 +18,8 @@
 			import views.GameView;
 			import views.MainView;		
 			
+			public static const YOUTUBE_API_KEY:String = COPY_YOUR_YOUTUBE_APIEEY_HERE;
+			
 			private var isOpen:Boolean;	
 			
 			[Bindable]

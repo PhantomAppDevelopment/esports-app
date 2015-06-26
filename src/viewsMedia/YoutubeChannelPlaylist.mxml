@@ -3,15 +3,17 @@
 		xmlns:s="library://ns.adobe.com/flex/spark" tabBarVisible="false" title="{data.title}" viewActivate="init(event)">
 	<fx:Script>
 		<![CDATA[
+			import mx.collections.ArrayList;
 			import mx.events.FlexEvent;
 			import mx.events.PropertyChangeEvent;
+			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
 			
 			import spark.events.IndexChangeEvent;
 			import spark.events.ViewNavigatorEvent;
 			
-			public var startIndex:int;
-			public var loading:Boolean;
+			private var pageToken:String;
+			private var loading:Boolean;
 			public var months:Object = new Object();
 			
 			protected function init(event:ViewNavigatorEvent):void
@@ -30,8 +32,8 @@
 				months["12"] = "December";
 				
 				myBusy.visible = true;
-				startIndex = 1;
-				playlistService.url = "http://gdata.youtube.com/feeds/api/playlists/"+data.id+"?max-results=20&start-index="+startIndex;
+				pageToken = "";
+				playlistService.url = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId="+data.id+"&maxResults=50&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 				playlistService.send();
 			}
 			
@@ -43,17 +45,21 @@
 			protected function videosList_changeHandler(event:IndexChangeEvent):void
 			{
 				var myObject:Object = new Object();
-				myObject.title = videosList.selectedItem.title;
-				myObject.url = videosList.selectedItem.group.thumbnail[0].url.split("/")[4];
+				myObject.title = videosList.selectedItem.snippet.title;
+				myObject.url = videosList.selectedItem.snippet.resourceId.videoId;
 				navigator.pushView(VideoDetails, myObject);
 			}
 			
 			protected function playlistService_resultHandler(event:ResultEvent):void
 			{
+				var rawData:Object = JSON.parse(String(event.result));
+				pageToken = rawData.nextPageToken;
+				
 				if(videosList.dataProvider == null){
-					videosList.dataProvider = event.result.feed.entry;
+					var videosArray:ArrayList = new ArrayList(rawData.items as Array);
+					videosList.dataProvider = videosArray;
 				} else {
-					for each ( var item : * in event.result.feed.entry){
+					for each (var item:* in rawData.items){
 						videosList.dataProvider.addItem(item);
 					}
 				}
@@ -75,35 +81,40 @@
 				if(!loading){
 					myBusy.visible = true;
 					loading = true;
-					startIndex+=20;
-					playlistService.url = "http://gdata.youtube.com/feeds/api/playlists/"+data.id+"?max-results=20&start-index="+startIndex;
+					playlistService.url = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId="+data.id+"&pageToken="+pageToken+"&maxResults=50&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					playlistService.send();
 				}
+			}
+			
+			protected function playlistService_faultHandler(event:FaultEvent):void
+			{
+				loading = false;
+				myBusy.visible = false;
 			}
 			
 		]]>
 	</fx:Script>
 	<fx:Declarations>
-		<s:HTTPService id="playlistService" result="playlistService_resultHandler(event)"/>
+		<s:HTTPService id="playlistService" result="playlistService_resultHandler(event)" resultFormat="text" fault="playlistService_faultHandler(event)"/>
 	</fx:Declarations>
 	
 	<s:List id="videosList" creationComplete="videosList_creationCompleteHandler(event)" change="videosList_changeHandler(event)" width="100%" height="100%">
 		<s:itemRenderer>
 			<fx:Component>
-				<s:IconItemRenderer messageStyleName="myMessageStyle" iconWidth="67" iconHeight="50" iconFunction="myIconFunction" messageFunction="myMessageFunction" labelFunction="myLabelFunction">
+				<s:IconItemRenderer messageStyleName="myMessageStyle" iconWidth="67" iconHeight="50" iconScaleMode="letterbox" iconFunction="myIconFunction" messageFunction="myMessageFunction" labelFunction="myLabelFunction">
 					<fx:Script>
 						<![CDATA[
 							
 							public function myIconFunction(item:Object):String{		
-								return data.group.thumbnail[0].url;
+								return data.snippet.thumbnails.medium.url;
 							}
 							
 							public function myLabelFunction(item:Object):String{								
-								return data.title;
+								return data.snippet.title;
 							}
 							
 							public function myMessageFunction(item:Object):String{								
-								return outerDocument.months[data.published.slice(5,7)]+" "+data.published.slice(8,10)+", "+data.published.slice(0,4);
+								return String(data.snippet.publishedAt).substr(0, 10);
 							}
 							
 						]]>

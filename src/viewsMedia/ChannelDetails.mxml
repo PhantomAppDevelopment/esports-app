@@ -6,12 +6,13 @@
 			import mx.core.FlexGlobals;
 			import mx.events.FlexEvent;
 			import mx.events.PropertyChangeEvent;
+			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
 			
 			import spark.events.IndexChangeEvent;
 			import spark.events.ViewNavigatorEvent;
 			
-			private var startIndex:int;
+			private var pageToken:String;
 			private var loading:Boolean;
 			public var months:Object = new Object();
 			private var searchTerm:String;
@@ -35,16 +36,16 @@
 				
 				isSearch = false;
 				myBusy.visible = true;
-				startIndex = 1;
-				channelUploads.url = "https://gdata.youtube.com/feeds/api/users/"+data.channelID+"/uploads?max-results=20&start-index="+startIndex;
+				pageToken = "";
+				channelUploads.url = "https://www.googleapis.com/youtube/v3/search?channelId="+data.channelID+"&maxResults=50&order=date&type=video&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 				channelUploads.send();
 			}
 			
 			protected function playVideo(event:IndexChangeEvent):void
 			{
 				var myObject:Object = new Object();
-				myObject.title = videosList.selectedItem.title;
-				myObject.url = videosList.selectedItem.id.slice(42, 55);
+				myObject.title = videosList.selectedItem.snippet.title;
+				myObject.url = videosList.selectedItem.id.videoId;
 				navigator.pushView(VideoDetails, myObject);
 			}
 			
@@ -55,11 +56,13 @@
 			
 			protected function channelUploads_resultHandler(event:ResultEvent):void
 			{
-				if(event.result.feed.entry.length != undefined){				
+				var rawData:Object = JSON.parse(String(event.result));
+				pageToken = rawData.nextPageToken;
+				if(rawData.items.length != 0){				
 					if(videosList.dataProvider == null){
-						videosList.dataProvider = event.result.feed.entry;
-					} else {
-						for each ( var item : * in event.result.feed.entry){
+						var videosArray:ArrayList = new ArrayList(rawData.items as Array);
+						videosList.dataProvider = videosArray;				} else {
+						for each ( var item:* in rawData.items){
 							videosList.dataProvider.addItem(item);
 						}
 					}
@@ -71,14 +74,16 @@
 			
 			protected function channelPlaylists_resultHandler(event:ResultEvent):void
 			{
-				playlistList.dataProvider = event.result.feed.entry;
+				var rawData:Object = JSON.parse(String(event.result));
+				var playlistArray:ArrayList = new ArrayList(rawData.items as Array);
+				playlistList.dataProvider = playlistArray;
 			}
 			
 			protected function playlistList_changeHandler(event:IndexChangeEvent):void
 			{
 				var myObject:Object = new Object();
-				myObject.id = playlistList.selectedItem.playlistId;
-				myObject.title =  playlistList.selectedItem.title;
+				myObject.id = playlistList.selectedItem.id.playlistId;
+				myObject.title =  playlistList.selectedItem.snippet.title;
 				navigator.pushView(YoutubeChannelPlaylist, myObject);
 			}
 			
@@ -99,18 +104,18 @@
 				if(!loading){
 					myBusy.visible = true;
 					loading = true;
-					startIndex+=20;
+					
 					if(isSearch){
-						channelUploads.url = "https://gdata.youtube.com/feeds/api/users/"+data.channelID+"/uploads?max-results=20&q="+searchTerm+"&start-index="+startIndex;
+						channelUploads.url = "https://www.googleapis.com/youtube/v3/search?q="+searchTerm+"&channelId="+data.channelID+"&maxResults=50&order=date&type=video&pageToken="+pageToken+"&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					} else {
-						channelUploads.url = "https://gdata.youtube.com/feeds/api/users/"+data.channelID+"/uploads?max-results=20&start-index="+startIndex;
+						channelUploads.url = "https://www.googleapis.com/youtube/v3/search?channelId="+data.channelID+"&maxResults=50&order=date&type=video&pageToken="+pageToken+"&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					}
 					channelUploads.send();
 				}
 			}
 			
 			private function loadPlaylists():void{
-				channelPlaylists.url = "https://gdata.youtube.com/feeds/api/users/"+data.channelID+"/playlists?max-results=50&start-index=1";
+				channelPlaylists.url = "https://www.googleapis.com/youtube/v3/search?channelId="+data.channelID+"&maxResults=50&order=relevance&type=playlist&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 				channelPlaylists.send();
 			}
 			
@@ -138,13 +143,19 @@
 					searchTerm = searchTxt.text;
 					isSearch = true;
 					myBusy.visible = true;
-					startIndex = 1;
+					pageToken = "";
 					
 					videosList.dataProvider = new ArrayList(new Array());
 					
-					channelUploads.url = "https://gdata.youtube.com/feeds/api/users/"+data.channelID+"/uploads?max-results=20&q="+searchTerm+"&start-index="+startIndex;
+					channelUploads.url = "https://www.googleapis.com/youtube/v3/search?q="+searchTerm+"&channelId="+data.channelID+"&maxResults=50&order=date&type=video&pageToken="+pageToken+"&part=snippet&key="+EsportsApp.YOUTUBE_API_KEY;
 					channelUploads.send();
 				}
+			}
+			
+			protected function channelUploads_faultHandler(event:FaultEvent):void
+			{
+				loading = false;
+				myBusy.visible = false;
 			}
 			
 		]]>
@@ -153,8 +164,8 @@
 	
 	
 	<fx:Declarations>
-		<s:HTTPService id="channelUploads" result="channelUploads_resultHandler(event)"/>
-		<s:HTTPService id="channelPlaylists" result="channelPlaylists_resultHandler(event)"/>
+		<s:HTTPService id="channelUploads" result="channelUploads_resultHandler(event)" fault="channelUploads_faultHandler(event)" resultFormat="text"/>
+		<s:HTTPService id="channelPlaylists" result="channelPlaylists_resultHandler(event)" resultFormat="text"/>
 	</fx:Declarations>
 	
 	<s:states>
@@ -195,20 +206,21 @@
 	<s:List excludeFrom="playlistState" creationComplete="videosList_creationCompleteHandler(event)" id="videosList" change="playVideo(event)" width="100%" top="110" bottom="0">
 		<s:itemRenderer>
 			<fx:Component>
-				<s:IconItemRenderer messageStyleName="myMessageStyle" iconWidth="67" iconHeight="50" iconFunction="myIconFunction" messageFunction="myMessageFunction" labelFunction="myLabelFunction">
+				<s:IconItemRenderer messageStyleName="myMessageStyle" iconWidth="67" iconHeight="50"  iconScaleMode="letterbox" iconFunction="myIconFunction" messageFunction="myMessageFunction" labelFunction="myLabelFunction">
 					<fx:Script>
 						<![CDATA[
 							
 							public function myIconFunction(item:Object):String{		
-								return "http://i1.ytimg.com/vi/"+data.id.slice(42, 55)+"/default.jpg";								
+								return data.snippet.thumbnails.medium.url;						
 							}
 							
 							public function myLabelFunction(item:Object):String{								
-								return data.title;
+								return data.snippet.title;
 							}
 							
 							public function myMessageFunction(item:Object):String{								
-								return outerDocument.months[data.published.slice(5,7)]+" "+data.published.slice(8,10)+", "+data.published.slice(0,4);
+								return String(data.snippet.publishedAt).substr(0, 10);
+								//return outerDocument.months[data.published.slice(5,7)]+" "+data.published.slice(8,10)+", "+data.published.slice(0,4);
 							}
 							
 						]]>
@@ -221,7 +233,7 @@
 	<s:List excludeFrom="uploadsState" change="playlistList_changeHandler(event)" id="playlistList" width="100%" top="55" bottom="0">
 		<s:itemRenderer>
 			<fx:Component>
-				<s:IconItemRenderer messageStyleName="myMessageStyle2" labelFunction="myLabelFunction" messageFunction="myMessageFunction" iconFunction="myIconFunction" iconWidth="67" iconHeight="50">
+				<s:IconItemRenderer messageStyleName="myMessageStyle2" labelFunction="myLabelFunction" messageFunction="myMessageFunction" iconFunction="myIconFunction" iconScaleMode="letterbox" iconWidth="67" iconHeight="50">
 					<fx:Script>
 						<![CDATA[
 							
@@ -230,12 +242,12 @@
 							}
 							
 							public function myMessageFunction(item:Object):String{								
-								return data.title;
+								return data.snippet.title;
 							}
 							
 							public function myIconFunction(item:Object):String{		
-								if(data.group.thumbnail){
-									return data.group.thumbnail[0].url;
+								if(data.snippet.thumbnails){
+									return data.snippet.thumbnails.medium.url;
 								} else {
 									return "";
 								}							
