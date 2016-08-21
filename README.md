@@ -1,28 +1,30 @@
-eSports App
-===========
+# eSports App 1.0.0
 
-eSports app made with Apache Flex 4.14.1 and Adobe AIR 17.0
+eSports App is a mobile application developed with the Apache Flex mobile framework. It showcases how to use different web services to obtain information about a given video game, specially those who have a competitive scene.
 
-How to use:
+It uses the following APIs and technologies:
 
-1. Clone the 'src' folder somewhere in your computer.
+  - Reddit API (JSON)
+  - Youtube V3 API (JSON)
+  - RSS News (XML)
 
-2. Create a new Flex Mobile project with the name you desire.
+Some of the techniques covered are:
 
-3. Select 'Blank' as application template and click on Finish.
+  - SQLite
+  - Infinite scrolling in lists.
+  - Passing data between screens.
+  - Custom navigation with a drawer and tabs.
+  - Custom Font.
+  - Using StageWebView to load Youtube videos.
+  - Multi DPI development.
 
-4. Replace the 'src' folder from the new project you just created with the one you downloaded/cloned from this repo.
+To compile this application you only require a recent version of the Apache Flex and Adobe AIR SDKs.
+You will also require to provide your own API keys which can be obtained for free on their respective sites.
 
-5. You must provide your own UI icons, all of them should go in the 'assets/icons' folder.
+![Screenshot](http://i.imgur.com/whdKlHi.png)
 
-When you try to compile the app for the first time it will throw several errors, all of them are from missing assets.
+## Download
 
-To bypass these you can modify the MXML like this:
+You can test this app by downloading it directly from Google Play.
 
-source="@Embed('assets/icons/someicon.png')" to source="assets/icons/someicon.png"
-
-
-Notes:
-
-You need a Youtube V3 Data APiKEY. You can generate a free one from your Google Developers Console.
-This project can teach you how to use SQLite, HTTPServices, JSON parsing, Lazy Loading and some performance optimizations.
+[![Download](http://i.imgur.com/He0deVa.png)](https://play.google.com/store/apps/details?id=air.im.phantom.esports)
